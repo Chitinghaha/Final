@@ -13,16 +13,19 @@ const __dirname = path.dirname(__filename);
 const setupDemo = () => {
     IAM.createResource({
         home: ['view'],
-        blog: ['view', 'edit']
+        blog: ['view', 'edit'],
+        permissions:['view']
     })
 
     IAM.everyone({
         home: '*',
-        blog: ['view', 'deny:edit']
+        blog: ['view', 'deny:edit'],
+        permissions:['deny:view']
     })
 
     IAM.createRole('administrator_role', {
-        blog: ['allow:edit']
+        blog: ['allow:edit'],
+        permissions:['allow:view']
     })
 
     // Create a basic user
@@ -134,4 +137,48 @@ app.get('/api/iam-data', (req, res) => {
     res.status(500).json({ error: '取得 IAM 資料失敗' });
   }
 });
+
+
+// app.post('/api/user/create', (req, res) => {
+//   try {
+//     const { name, roleName } = req.body;
+//     if (!name) {
+//       return res.status(400).json({ error: 'User name is required' });
+//     }
+
+//     const user = roleName
+//       ? IAM.createUser(roleName)
+//       : IAM.createUser();
+
+//     user.name = name;
+
+//     res.json({
+//       message: 'User created successfully',
+//       user: {
+//         name: user.name,
+//         roles: user.roles.map(r => r.name)
+//       }
+//     });
+//   } catch (error) {
+//     console.error('建立使用者失敗:', error);
+//     res.status(500).json({ error: '建立使用者失敗' });
+//   }
+// });
+
+app.post('/api/user/assign-role', (req, res) => {
+  try {
+    const { userName, roleName } = req.body;
+
+    const user = IAM.user(userName);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.assign(roleName);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error assigning role:', error);
+    res.status(500).json({ error: 'Failed to assign role' });
+  }
+});
+
+
 
