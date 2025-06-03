@@ -39,16 +39,12 @@ const setupDemo = () => {
         admin_settings: '*',
     })
 
-
-
     // Create a basic user
     const basicUser = IAM.createUser()
     basicUser.name = 'John Doe'
 
     const basicUser2 = IAM.createUser()
     basicUser2.name = 'Jim Lin'
-
-    
 
     // Create an admin user
     // Assign the admin user to the administrator role.
@@ -162,47 +158,6 @@ app.get('/api/iam-data', (req, res) => {
 });
 
 
-// app.post('/api/user/create', (req, res) => {
-//   try {
-//     const { name, roleName } = req.body;
-//     if (!name) {
-//       return res.status(400).json({ error: 'User name is required' });
-//     }
-
-//     const user = roleName
-//       ? IAM.createUser(roleName)
-//       : IAM.createUser();
-
-//     user.name = name;
-
-//     res.json({
-//       message: 'User created successfully',
-//       user: {
-//         name: user.name,
-//         roles: user.roles.map(r => r.name)
-//       }
-//     });
-//   } catch (error) {
-//     console.error('建立使用者失敗:', error);
-//     res.status(500).json({ error: '建立使用者失敗' });
-//   }
-// });
-
-app.post('/api/user/assign-role', (req, res) => {
-  try {
-    const { userName, roleName } = req.body;
-
-    const user = IAM.user(userName);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    user.assign(roleName);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error assigning role:', error);
-    res.status(500).json({ error: 'Failed to assign role' });
-  }
-});
-
 app.post('/api/user/set-right', (req, res) => {
   try {
     const { userName, resource, right, value } = req.body;
@@ -218,6 +173,44 @@ app.post('/api/user/set-right', (req, res) => {
     res.status(500).json({ error: 'Failed to set right' });
   }
 });
+
+app.post('/api/group/assign-role', (req, res) => {
+  try {
+    const { group, role } = req.body; // 建議用與前端一致的 key
+    const targetGroup = IAM.group(group);
+
+    if (!targetGroup) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    targetGroup.assign(role); // 角色名稱為字串即可
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error assigning role to group:', error);
+    res.status(500).json({ error: 'Failed to assign role to group' });
+  }
+});
+
+app.post('/api/group/revoke-role', (req, res) => {
+  try {
+    const { group, role } = req.body;
+    const targetGroup = IAM.group(group);
+
+    if (!targetGroup) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    targetGroup.revoke(role);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error revoking role from group:', error);
+    res.status(500).json({ error: 'Failed to revoke role from group' });
+  }
+});
+
+
 
 
 

@@ -1,3 +1,6 @@
+// ==========================
+// 🔧 變數與 DOM 選擇器
+// ==========================
 let currentUser = 'John Doe';
 let iamCache = null;
 
@@ -11,13 +14,9 @@ const adminPermissionsContainer = document.getElementById('admin-permissions');
 
 let adminSelectedUser = null;
 
-// 當 admin 選擇使用者時更新權限顯示
-adminUserSelect.addEventListener('change', async (e) => {
-  adminSelectedUser = e.target.value;
-  await renderAdminPermissionsPage();
-});
-
-// API 調用
+// ==========================
+// 🧠 IAM 資料相關 API
+// ==========================
 const fetchIAMData = async () => {
   if (iamCache) return iamCache;
   const res = await fetch('/api/iam-data');
@@ -45,7 +44,9 @@ const userTrace = async (userName, resource, permission) => {
   return data.data;
 };
 
-// 切換 header 選單樣式
+// ==========================
+// 🎨 Header 操作邏輯
+// ==========================
 const setSelectedHeader = (selectedId) => {
   headerLinks.forEach(link => {
     if (link.id === selectedId) {
@@ -56,7 +57,6 @@ const setSelectedHeader = (selectedId) => {
   });
 };
 
-// 點擊 header 欄位事件處理
 headerLinks.forEach(link => {
   link.addEventListener('click', async evt => {
     evt.preventDefault();
@@ -90,7 +90,6 @@ headerLinks.forEach(link => {
       return;
     }
 
-    // 其他頁面權限判斷
     const resource = displaySection !== 'home' ? 'blog' : 'home';
     const permission = displaySection === 'editor' ? 'edit' : 'view';
 
@@ -106,18 +105,21 @@ headerLinks.forEach(link => {
   });
 });
 
-// 使用者選單綁定事件
+// ==========================
+// 👤 使用者選單事件
+// ==========================
 userList.addEventListener('change', async evt => {
   currentUser = evt.target.value;
   await updateUserSnippet();
 
-  // 如果目前在 permissions 頁，刷新
   if (document.querySelector('author-cycle > section.permissions[selected]')) {
     await renderPermissionsPage();
   }
 });
 
-// 渲染 IAM 資料
+// ==========================
+// 🖼️ 主畫面渲染邏輯
+// ==========================
 const renderIAM = async () => {
   const res = await fetchIAMData();
   const { roles, groups, users, resources } = res;
@@ -130,14 +132,10 @@ const renderIAM = async () => {
   roles.forEach(role => {
     const rights = Object.entries(role.rights)
       .map(([resource, perms]) =>
-        perms
-          .map(
-            (priv) =>
-              `<div class="permission_${priv.granted ? 'granted' : 'denied'}">${resource}: ${priv.right}</div>`
-          )
-          .join('')
-      )
-      .join('');
+        perms.map(priv =>
+          `<div class="permission_${priv.granted ? 'granted' : 'denied'}">${resource}: ${priv.right}</div>`
+        ).join('')
+      ).join('');
     document.querySelector('.roles table tbody').insertAdjacentHTML('beforeend', `<tr><td>${role.name}</td><td>${rights}</td></tr>`);
   });
 
@@ -169,7 +167,9 @@ const updateUserSnippet = async () => {
 
 renderIAM();
 
-// 新增：載入 Admin User List
+// ==========================
+// 👨‍💼 Admin 權限設定頁面
+// ==========================
 async function loadAdminUserList() {
   const iamData = await fetchIAMData();
   adminUserSelect.innerHTML = '';
@@ -179,6 +179,7 @@ async function loadAdminUserList() {
     option.textContent = user.name;
     adminUserSelect.appendChild(option);
   });
+
   if (iamData.users.length > 0) {
     adminSelectedUser = iamData.users[0].name;
     adminUserSelect.value = adminSelectedUser;
@@ -186,7 +187,12 @@ async function loadAdminUserList() {
   }
 }
 
-// Admin 頁面渲染與即時更新（含三下拉選單與儲存按鈕）
+adminUserSelect.addEventListener('change', async (e) => {
+  adminSelectedUser = e.target.value;
+  await renderAdminPermissionsPage();
+
+});
+
 async function renderAdminPermissionsPage() {
   adminPermissionsContainer.innerHTML = '載入中...';
   const iamData = await fetchIAMData();
@@ -195,46 +201,34 @@ async function renderAdminPermissionsPage() {
 
   adminPermissionsContainer.innerHTML = '';
 
-  // 建立 resource 下拉選單
   const resourceSelect = document.createElement('select');
   resourceSelect.id = 'admin-resource-select';
-
   resources.forEach(res => {
     const option = document.createElement('option');
     option.value = res.name;
     option.textContent = res.name;
     resourceSelect.appendChild(option);
   });
-
   adminPermissionsContainer.appendChild(resourceSelect);
 
-  // 建立 rights 下拉選單（依 resource 動態更新）
   const rightSelect = document.createElement('select');
   rightSelect.id = 'admin-right-select';
   adminPermissionsContainer.appendChild(rightSelect);
 
-  // allow/deny 下拉選單
   const allowDenySelect = document.createElement('select');
   allowDenySelect.id = 'admin-allow-deny-select';
-
-  const allowOption = document.createElement('option');
-  allowOption.value = 'allow';
-  allowOption.textContent = 'allow';
-
-  const denyOption = document.createElement('option');
-  denyOption.value = 'deny';
-  denyOption.textContent = 'deny';
-
-  allowDenySelect.appendChild(allowOption);
-  allowDenySelect.appendChild(denyOption);
+  ['allow', 'deny'].forEach(val => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val;
+    allowDenySelect.appendChild(opt);
+  });
   adminPermissionsContainer.appendChild(allowDenySelect);
 
-  // 儲存按鈕
   const saveBtn = document.createElement('button');
   saveBtn.textContent = '儲存';
   adminPermissionsContainer.appendChild(saveBtn);
 
-  // 當切換 resource 時，更新 rights 下拉選單
   const updateRightsOptions = async (resourceName) => {
     rightSelect.innerHTML = '';
     const resource = resources.find(r => r.name === resourceName);
@@ -247,7 +241,6 @@ async function renderAdminPermissionsPage() {
       rightSelect.appendChild(option);
     });
 
-    // 更新 allow/deny 狀態
     const selectedRight = rightSelect.value;
     const hasPermission = await userAuthorized(userName, resourceName, selectedRight);
     allowDenySelect.value = hasPermission ? 'allow' : 'deny';
@@ -264,13 +257,11 @@ async function renderAdminPermissionsPage() {
     allowDenySelect.value = hasPermission ? 'allow' : 'deny';
   });
 
-  // 頁面初始載入時，設定初始選項並取得權限狀態
   if (resources.length > 0) {
     resourceSelect.value = resources[0].name;
     await updateRightsOptions(resources[0].name);
   }
 
-  // 儲存按鈕事件
   saveBtn.addEventListener('click', async () => {
     const resourceName = resourceSelect.value;
     const rightName = rightSelect.value;
@@ -280,22 +271,16 @@ async function renderAdminPermissionsPage() {
       const res = await fetch('/api/user/set-right', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userName,
-          resource: resourceName,
-          right: rightName,
-          value
-        }),
+        body: JSON.stringify({ userName, resource: resourceName, right: rightName, value }),
       });
 
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        const text = await res.text(); // 把錯誤內容印出來
+        const text = await res.text();
         throw new Error(`伺服器未回傳 JSON：\n${text}`);
       }
 
       const data = await res.json();
-
       if (data.success) {
         alert(`更新成功：${resourceName} - ${rightName} 設為 ${value}`);
       } else {
@@ -306,9 +291,108 @@ async function renderAdminPermissionsPage() {
     }
   });
 
+  await renderGroupRoleManagement();
 }
 
-// 渲染使用者權限頁面
+// ==============================
+// 管理群組角色功能（群組 + 角色 assign/revoke）
+// ==============================
+async function renderGroupRoleManagement() {
+  const iamData = await fetchIAMData();
+  const { groups, roles } = iamData;
+
+  const container = document.createElement('div');
+  container.classList.add('group-role-management');
+
+  const title = document.createElement('h3');
+  title.textContent = '群組角色管理';
+  container.appendChild(title);
+
+  // 群組下拉選單
+  const groupSelect = document.createElement('select');
+  groupSelect.id = 'admin-group-select';
+  groups.forEach(group => {
+    const opt = document.createElement('option');
+    opt.value = group.name;
+    opt.textContent = group.name;
+    groupSelect.appendChild(opt);
+  });
+  container.appendChild(groupSelect);
+
+  // 角色下拉選單
+  const roleSelect = document.createElement('select');
+  roleSelect.id = 'admin-role-select';
+  roles.forEach(role => {
+    const opt = document.createElement('option');
+    opt.value = role.name;
+    opt.textContent = role.name;
+    roleSelect.appendChild(opt);
+  });
+  container.appendChild(roleSelect);
+
+  // assign 按鈕
+  const assignBtn = document.createElement('button');
+  assignBtn.textContent = '指派角色';
+  container.appendChild(assignBtn);
+
+  // revoke 按鈕
+  const revokeBtn = document.createElement('button');
+  revokeBtn.textContent = '移除角色';
+  container.appendChild(revokeBtn);
+
+  adminPermissionsContainer.appendChild(container);
+
+  // 綁定事件：assign
+  assignBtn.addEventListener('click', async () => {
+    const groupName = groupSelect.value;
+    const roleName = roleSelect.value;
+
+    try {
+      const res = await fetch('/api/group/assign-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group: groupName, role: roleName }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`已成功將角色 ${roleName} 指派給群組 ${groupName}`);
+        await renderIAM(); // 可選，若要刷新畫面
+      } else {
+        alert('指派失敗，請稍後再試。');
+      }
+    } catch (err) {
+      alert('指派角色時發生錯誤: ' + err.message);
+    }
+  });
+
+  // 綁定事件：revoke
+  revokeBtn.addEventListener('click', async () => {
+    const groupName = groupSelect.value;
+    const roleName = roleSelect.value;
+
+    try {
+      const res = await fetch('/api/group/revoke-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group: groupName, role: roleName }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`已成功從群組 ${groupName} 移除角色 ${roleName}`);
+        await renderIAM(); // 可選
+      } else {
+        alert('移除失敗，請稍後再試。');
+      }
+    } catch (err) {
+      alert('移除角色時發生錯誤: ' + err.message);
+    }
+  });
+}
+
+
+// ==========================
+// 🔍 權限檢視頁面渲染
+// ==========================
 async function renderPermissionsPage() {
   permissionsContainer.innerHTML = '載入中...';
   const iamData = await fetchIAMData();
@@ -344,3 +428,4 @@ async function renderPermissionsPage() {
     permissionsContainer.appendChild(resourceDiv);
   }
 }
+
