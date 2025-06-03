@@ -9,7 +9,7 @@ jobs:
     name: 'Run Tests'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/cache@v3
         name: Checkout Code
 
       - name: List Directory Contents (for Troubleshooting)
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '20'
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         name: Establish npm Cache
         with:
           path: ~/.npm
@@ -30,7 +30,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         name: Establish Docker Cache
         id: cache
         with:
