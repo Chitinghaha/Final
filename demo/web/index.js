@@ -1,105 +1,103 @@
-// =============================================//
+let currentUser = 'John Doe';
 
-// UI
+const snippet = document.querySelector('.home code:last-of-type');
+const template = document.querySelector('author-cycle');
+const userList = document.querySelector('header > select[name="user"]');
 
-// Basic UI interaction
-const snippet = document.querySelector('.home code:last-of-type')
-const template = document.querySelector('author-cycle')
-const userList = document.querySelector('header > select[name="user"]')
-
-const currentUser = 'John Doe'
-
+// API 調用
+const fetchIAMData = async () => (await fetch('/api/iam-data')).json();
 const userAuthorized = async (userName, resource, permission) =>
-  await fetch('/api/user/authorized', {
+  (await fetch('/api/user/authorized', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userName: userName, resource: resource, permission: permission })
-  })
-    .then(res => res.json()).then(data => data.data);
+    body: JSON.stringify({ userName, resource, permission })
+  })).json().then(res => res.data);
 
 const userTrace = async (userName, resource, permission) =>
-  await fetch('/api/user/trace', {
+  (await fetch('/api/user/trace', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userName: userName, resource: resource, permission: permission })
-  })
-    .then(res => res.json()).then(data => data.data);
+    body: JSON.stringify({ userName, resource, permission })
+  })).json().then(res => res.data);
 
+// 動態 UI 行為
 document.querySelectorAll('header a').forEach(link => {
   link.addEventListener('click', async evt => {
     if (!evt.target.getAttribute('selected')) {
-      evt.preventDefault()
+      evt.preventDefault();
 
-      let displaySection = evt.target.getAttribute('id')
+      const displaySection = evt.target.getAttribute('id');
+      const resource = displaySection !== 'home' ? 'blog' : 'home';
+      const permission = displaySection === 'editor' ? 'edit' : 'view';
 
-      let resource = displaySection !== 'home' ? 'blog' : 'home'
-      let permission = displaySection === 'editor' ? 'edit' : 'view'
+      const authorized = await userAuthorized(currentUser, resource, permission);
+      const trace = await userTrace(currentUser, resource, permission);
 
-      if (!await userAuthorized(currentUser, resource, permission)) {
-        alert(`Sorry ${currentUser}, you aren't authorized to see that section.\n\n${(await userTrace(currentUser, resource, permission)).description}`)
-        return
+      if (!authorized) {
+        alert(`Sorry ${currentUser}, you aren't authorized to see that section.\n\n${trace.description}`);
+        return;
       }
 
-      try {
-        console.log(`Checking if ${currentUser} has "${permission}" right on the "${resource}" resource.`)
-        console.log((await userTrace(currentUser, resource, permission)).description)
-      } catch (e) {
-        console.error(e)
-        console.log(resource, permission)
-        console.log(await userTrace(currentUser, resource, permission))
-      }
+      console.log(`Checking if ${currentUser} has "${permission}" on "${resource}".`);
+      console.log(trace.description);
 
-      template.show(`.${displaySection}`)
+      template.show(`.${displaySection}`);
     }
-  })
-})
+  });
+});
 
-userList.addEventListener('change', evt => {
-  currentUser = IAM.users[parseInt(evt.target.selectedOptions[0].value, 10)]
-  snippet.innerHTML = userData()
-})
+// 初始載入 IAM 資料
+const renderIAM = async () => {
+  const res = await fetchIAMData();
+  const { roles, groups, users, resources } = res;
 
-IAM.users.forEach((user, index) => {
-  userList.insertAdjacentHTML('beforeend', `<option value="${index}">${user.name}</option>`)
-})
+  // 角色
+  const roleTable = document.querySelector('.roles table tbody');
+  roles.forEach(role => {
+    const rights = Object.entries(role.rights)
+      .map(([resource, perms]) =>
+        perms.map(priv => `<div class="permission_${priv.granted ? 'granted' : 'denied'}">${resource}: ${priv.right}</div>`).join('')
+      ).join('');
 
-let userData = () => {
-  return JSON.stringify(currentUser.data, null, 2).trim()
-    + '\n\n// Rights\n' + JSON.stringify(currentUser.data.rights ?? {}, null, 2).trim()
+    roleTable.insertAdjacentHTML('beforeend', `<tr><td>${role.name}</td><td>${rights}</td></tr>`);
+  });
 
-}
+  // 群組
+  const groupTable = document.querySelector('.groups table tbody');
+  groups.forEach(group => {
+    const rolesHTML = group.roles.join('<br/>');
+    const membersHTML = group.members.map(m => m.name).join('<br/>');
+    groupTable.insertAdjacentHTML('beforeend', `<tr><td>${group.name}</td><td>${rolesHTML}</td><td>${membersHTML}</td></tr>`);
+  });
 
-snippet.innerHTML = userData()
+  // 使用者
+  users.forEach((user, index) => {
+    userList.insertAdjacentHTML('beforeend', `<option value="${user.name}" ${user.name === currentUser ? 'selected' : ''}>${user.name}</option>`);
+  });
 
-const resourceTable = document.querySelector('.resources table')
-IAM.resources.forEach(resource => {
-  const rightElements = resource.data.rights.map((priv) =>
-    `<span class="permission_${priv.granted ? 'granted' : 'denied'}">${priv.right}</span>`
-  );
+  // 切換使用者
+  userList.addEventListener('change', async evt => {
+    currentUser = evt.target.value;
+    await updateUserSnippet();
+  });
 
-  resourceTable.insertAdjacentHTML('beforeend', `<tr><td>${resource.name}</td><td>${rightElements.join(', ')}</td></tr>`)
-})
+  // 資源
+  const resourceTable = document.querySelector('.resources table');
+  resources.forEach(resource => {
+    const rights = resource.rights.map(priv =>
+      `<span class="permission_${priv.granted ? 'granted' : 'denied'}">${priv.right}</span>`
+    ).join(', ');
+    resourceTable.insertAdjacentHTML('beforeend', `<tr><td>${resource.name}</td><td>${rights}</td></tr>`);
+  });
 
+  await updateUserSnippet();
+};
 
-const roleTable = document.querySelector('.roles table tbody')
-IAM.roles.forEach(role => {
-  const rightElements = Object.entries(role.data.rights)
-    .map(([resource, rights]) =>
-      rights.map(priv =>
-        `<div class="permission_${priv.granted ? 'granted' : 'denied'}">
-          ${resource}: ${priv.right}
-        </div>`
-      ).join("")
-    )
+// 顯示目前使用者資料
+const updateUserSnippet = async () => {
+  const res = await fetchIAMData();
+  const user = res.users.find(u => u.name === currentUser);
+  snippet.innerHTML = JSON.stringify(user, null, 2);
+};
 
-  roleTable.insertAdjacentHTML(
-    'beforeend',
-    `<tr><td class="role_${role.name}">${role.name}</td><td>${rightElements.join("\n")}</td></tr>`
-  )
-})
-
-
-const groupTable = document.querySelector('.groups table tbody')
-IAM.groups.forEach(group => {
-  groupTable.insertAdjacentHTML('beforeend', `<tr><td>${group.name}</td><td>${group.roleList.join('<br/>')}</td><td>${group.members.map(m => m.name + (m instanceof Group ? ' (group)' : '')).join('<br/>')}</td></tr>`)
-})
+renderIAM();

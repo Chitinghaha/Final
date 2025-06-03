@@ -94,3 +94,44 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
+app.get('/api/iam-data', (req, res) => {
+  try {
+    const data = {
+      users: IAM.users.map(user => ({
+        name: user.name,
+        roles: user.roles.map(r => r.name),
+        groups: user.groups.map(g => g.name)
+      })),
+      roles: IAM.roles.map(role => ({
+        name: role.name,
+        description: role.description ?? '',
+        rights: Object.fromEntries(
+          Object.entries(role.data.rights).map(([resource, rights]) => [
+            resource,
+            rights.map(priv => ({ right: priv.right, granted: priv.granted }))
+          ])
+        )
+      })),
+      groups: IAM.groups.map(group => ({
+        name: group.name,
+        description: group.description ?? '',
+        roles: group.roleList,
+        members: group.members.map(m => ({ name: m.name }))
+      })),
+      resources: IAM.resources.map(resource => ({
+        name: resource.name,
+        description: resource.description ?? '',
+        rights: resource.data.rights.map(priv => ({
+          right: priv.right,
+          granted: priv.granted
+        }))
+      }))
+    };
+
+    res.json(data);
+  } catch (error) {
+    console.error('取得 IAM 資料錯誤:', error);
+    res.status(500).json({ error: '取得 IAM 資料失敗' });
+  }
+});
+
