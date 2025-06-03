@@ -44,7 +44,8 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "@author.io/dev": "^1.1.0"
+    "@author.io/dev": "^1.1.0",
+    "tappedout": "^1.1.8"
   },
   "standard": {
     "globals": [

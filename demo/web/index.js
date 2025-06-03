@@ -90,6 +90,12 @@ headerLinks.forEach(link => {
       return;
     }
 
+    if (displaySection === 'home') {
+      iamCache = null;       // ✅ 清空快取
+      await renderIAM();     // 🔁 強制刷新資料
+    }
+
+
     const resource = displaySection !== 'home' ? 'blog' : 'home';
     const permission = displaySection === 'editor' ? 'edit' : 'view';
 
@@ -356,7 +362,7 @@ async function renderGroupRoleManagement() {
       const result = await res.json();
       if (result.success) {
         alert(`已成功將角色 ${roleName} 指派給群組 ${groupName}`);
-        await renderIAM(); // 可選，若要刷新畫面
+        await updateUserSnippet();
       } else {
         alert('指派失敗，請稍後再試。');
       }
@@ -379,7 +385,7 @@ async function renderGroupRoleManagement() {
       const result = await res.json();
       if (result.success) {
         alert(`已成功從群組 ${groupName} 移除角色 ${roleName}`);
-        await renderIAM(); // 可選
+        await updateUserSnippet();
       } else {
         alert('移除失敗，請稍後再試。');
       }

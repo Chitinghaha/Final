@@ -1,9 +1,8 @@
 name: Test Suite
 
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+
 
 jobs:
   build:
@@ -21,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v1
         name: Setup Node.js
         with:
-          node-version: '14'
+          node-version: '20'
 
       - uses: actions/cache@v2
         name: Establish npm Cache
