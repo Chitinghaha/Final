@@ -1,10 +1,90 @@
-import { IAM, Group } from '../../src/index.js'
+import { IAM } from '../../src/index.js';
+import { MONGO_URI } from './config.js';
 
 import express from 'express';
+import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 export const app = express();
+
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+const wildcardOrArrStringValidator = (value) => (
+  value === '*' ||
+  (Array.isArray(value) && value.every(item => typeof item === 'string'))
+);
+
+const rightValidate = {
+  validator: (value) => {
+    for (const v of value.values()) {
+      if (!wildcardOrArrStringValidator(v)) {
+        return false;
+      }
+    }
+    return true;
+  },
+  message: props => `Each rule value must be a string or an array of strings. Got: ${JSON.stringify(props.value)}`
+}
+
+const resourceSchema = new mongoose.Schema({
+  rules: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    validate: rightValidate,
+  }
+});
+
+const everyoneSchema = new mongoose.Schema({
+  rules: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    validate: rightValidate,
+  }
+});
+
+const roleSchema = new mongoose.Schema({
+  rules: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    validate: rightValidate,
+  }
+});
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  roles: [String],
+});
+
+const userRoleSchema = new mongoose.Schema({
+  user: String,
+  role: String,
+});
+
+const groupSchema = new mongoose.Schema({
+  name: String,
+});
+
+const groupRoleSchema = new mongoose.Schema({
+  group: String,
+  role: String,
+});
+
+const groupUserSchema = new mongoose.Schema({
+  group: String,
+  user: String,
+});
+
+const explicitUserRightSchema = new mongoose.Schema({
+  user: String,
+  resource: String,
+  right: [String],
+});
 
 // ESM workaround for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -49,8 +129,9 @@ const setupDemo = () => {
     // Create an admin user
     // Assign the admin user to the administrator role.
     // i.e. `adminUser.assign('administrator_role')`
-    const adminUser = IAM.createUser('administrator_role')
+    const adminUser = IAM.createUser()
     adminUser.name = 'Almighty Blogmaster'
+    adminUser.assign('administrator_role')
 
     // Groups
     const adminGroup = IAM.createGroup('administrator')
@@ -60,7 +141,6 @@ const setupDemo = () => {
 
     adminGroup.assign('administrator_role')
     adminUser.join('administrator')
-
 
     const userGroup = IAM.createGroup('User')
     userGroup.assign('blog_role')
@@ -209,12 +289,3 @@ app.post('/api/group/revoke-role', (req, res) => {
     res.status(500).json({ error: 'Failed to revoke role from group' });
   }
 });
-
-
-
-
-
-
-
-
-

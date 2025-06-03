@@ -17,3 +17,5 @@ build/package-lock.json
 env.json
 *.log
 dist
+
+.env
