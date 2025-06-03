@@ -26,9 +26,3 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:c8
 
-      - name: Upload coverage report
-        if: success()
-        uses: actions/upload-pages-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage/
