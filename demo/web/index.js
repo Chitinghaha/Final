@@ -1,48 +1,3 @@
-import { IAM, Group } from '/src/index.js'
-
-// Define the system components
-IAM.createResource({
-  home: ['view'],
-  blog: ['view', 'edit']
-})
-
-// Set defaults. Allow users to view the home
-// and blog tabs, but deny access to the administrator.
-IAM.everyone({
-  home: '*',
-  blog: ['view', 'deny:edit']
-})
-
-// Create an admin role
-IAM.createRole('administrator_role', {
-  blog: ['allow:edit']
-})
-
-// Create a basic user
-let basicUser = IAM.createUser()
-
-// Optionally give the user a descriptive name.
-basicUser.name = 'John Doe'
-
-// Create an admin user
-// Assign the admin user to the administrator role.
-// i.e. `adminUser.assign('administrator_role')`
-let adminUser = IAM.createUser('administrator_role')
-adminUser.name = 'Almighty Blogmaster'
-
-window.currentUser = basicUser
-
-// =============================================//
-
-// Groups
-let adminGroup = IAM.createGroup('administrator')
-let groups = IAM.createGroup('writer', 'reader')
-
-IAM.group('writer').add('reader', 'administrator')
-
-adminGroup.assign('administrator_role')
-adminUser.join('administrator')
-
 // =============================================//
 
 // UI
@@ -52,8 +7,26 @@ const snippet = document.querySelector('.home code:last-of-type')
 const template = document.querySelector('author-cycle')
 const userList = document.querySelector('header > select[name="user"]')
 
+const currentUser = 'John Doe'
+
+const userAuthorized = async (userName, resource, permission) =>
+  await fetch('/api/user/authorized', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userName: userName, resource: resource, permission: permission })
+  })
+    .then(res => res.json()).then(data => data.data);
+
+const userTrace = async (userName, resource, permission) =>
+  await fetch('/api/user/trace', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userName: userName, resource: resource, permission: permission })
+  })
+    .then(res => res.json()).then(data => data.data);
+
 document.querySelectorAll('header a').forEach(link => {
-  link.addEventListener('click', evt => {
+  link.addEventListener('click', async evt => {
     if (!evt.target.getAttribute('selected')) {
       evt.preventDefault()
 
@@ -62,18 +35,18 @@ document.querySelectorAll('header a').forEach(link => {
       let resource = displaySection !== 'home' ? 'blog' : 'home'
       let permission = displaySection === 'editor' ? 'edit' : 'view'
 
-      if (!currentUser.authorized(resource, permission)) {
-        alert(`Sorry ${currentUser.name}, you aren't authorized to see that section.\n\n${currentUser.trace(resource, permission).description}`)
+      if (!await userAuthorized(currentUser, resource, permission)) {
+        alert(`Sorry ${currentUser}, you aren't authorized to see that section.\n\n${(await userTrace(currentUser, resource, permission)).description}`)
         return
       }
 
       try {
-        console.log(`Checking if ${currentUser.name} has "${permission}" right on the "${resource}" resource.`)
-        console.log(currentUser.trace(resource, permission).description)
+        console.log(`Checking if ${currentUser} has "${permission}" right on the "${resource}" resource.`)
+        console.log((await userTrace(currentUser, resource, permission)).description)
       } catch (e) {
         console.error(e)
         console.log(resource, permission)
-        console.log(currentUser.trace(resource, permission))
+        console.log(await userTrace(currentUser, resource, permission))
       }
 
       template.show(`.${displaySection}`)

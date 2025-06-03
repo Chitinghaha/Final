@@ -9,6 +9,7 @@
     "lib": "src/lib"
   },
   "scripts": {
+    "demo:api:start": "node demo/api/server.js",
     "start": "dev workspace",
     "test": "npm run test:node && npm run test:deno && npm run test:browser && npm run report:syntax && npm run report:size",
     "test:node": "dev test -rt node tests/*.js",
@@ -61,5 +62,8 @@
       "@author.io/iam": "/app/.dist/iam/index.js",
       "@author.io/iam-debug": "/app/.dist/iam-debug/index.js.map"
     }
+  },
+  "dependencies": {
+    "express": "^5.1.0"
   }
 }
