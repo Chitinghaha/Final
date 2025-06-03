@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import IAM, { User, Group } from '@author.io/iam'
+import IAM, { User, Group } from '../src/index.js'
 
 const CRUD = ['create', 'read', 'update', 'delete']
 let config = null

@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import IAM, { User, Group } from '@author.io/iam'
+import IAM, { User, Group } from '../src/index.js'
 
 test('Basic Group Roles', t => {
   IAM.createResource({

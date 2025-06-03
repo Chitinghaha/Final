@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import IAM, { Resource, Right } from '@author.io/iam'
+import IAM, { Resource, Right } from '../src/index.js'
 
 test('Sanity Checks', t => {
   t.ok(IAM !== undefined, 'IAM registry exists as default export.')

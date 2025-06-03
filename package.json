@@ -11,7 +11,7 @@
   "scripts": {
     "demo:api:start": "node demo/api/server.js",
     "start": "dev workspace",
-    "test": "npm run test:node && npm run test:deno && npm run test:browser && npm run report:syntax && npm run report:size",
+    "test:c8": "c8 --reporter=lcov --reporter=text node --experimental-vm-modules tests/index.js",
     "test:node": "dev test -rt node tests/*.js",
     "test:node:sanity": "dev test -rt node tests/01-sanity.js",
     "test:browser": "dev test -rt browser tests/*.js",
@@ -45,6 +45,7 @@
   "type": "module",
   "devDependencies": {
     "@author.io/dev": "^1.1.0",
+    "nyc": "^17.1.0",
     "tappedout": "^1.1.8"
   },
   "standard": {

@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import { Right } from '@author.io/iam'
+import { Right } from '../src/index.js'
 
 test('Basic Rights/Permissions', t => {
   const right = new Right('create')

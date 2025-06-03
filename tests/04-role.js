@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import IAM, { REGISTRY_ID, Role } from '@author.io/iam'
+import IAM, { REGISTRY_ID, Role } from '../src/index.js'
 
 test('Basic Role', t => {
   IAM.createResource('blog', ['create', 'read', 'update', 'delete'])

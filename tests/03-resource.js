@@ -1,5 +1,5 @@
 import test from 'tappedout'
-import IAM, { REGISTRY_ID, Resource } from '@author.io/iam'
+import IAM, { REGISTRY_ID, Resource } from '../src/index.js'
 
 test('Basic Resources', t => {
   const resource = new Resource('blog', 'create', 'read', 'update', 'deny:delete')
