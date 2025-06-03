@@ -48,7 +48,8 @@ const everyoneSchema = new mongoose.Schema({
 const EveryoneModel = mongoose.model('Everyone', everyoneSchema);
 
 const roleSchema = new mongoose.Schema({
-  rules: {
+  name: String,
+  rights: {
     type: Map,
     of: mongoose.Schema.Types.Mixed,
     validate: rightValidate,
@@ -98,8 +99,13 @@ const __dirname = path.dirname(__filename);
 
 const loadFromDatabase = async () => {
   (await ResourceModel.find()).forEach(({ name, rights }) => IAM.createResource({ [name]: rights }));
+
   (await EveryoneModel.find()).forEach(({ rules: r }) => { r.entries().forEach(([name, rights]) => IAM.everyone({ [name]: rights })) });
-  RoleModel
+
+  (await RoleModel.find())
+    .filter(({ name }) => name !== 'everyone')
+    .forEach(({ name, rights }) => IAM.createRole(name, Object.fromEntries(rights)));
+
   UserModel
   UserRoleModel
   GroupModel
@@ -117,7 +123,10 @@ export const writeToDatabase = async () => {
     rules: IAM.configuration.roles.find(({ name }) => name === 'everyone').rights
   });
 
-  RoleModel
+  // console.dir(IAM.data.roles, {depth: null});
+  await RoleModel.deleteMany();
+  await RoleModel.insertMany(IAM.data.roles);
+
   UserModel
   UserRoleModel
   GroupModel
