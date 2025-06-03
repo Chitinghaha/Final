@@ -98,7 +98,7 @@ const __dirname = path.dirname(__filename);
 
 const loadFromDatabase = async () => {
   (await ResourceModel.find()).forEach(({ name, rights }) => IAM.createResource({ [name]: rights }));
-  (await EveryoneModel.find()).forEach(console.log);
+  (await EveryoneModel.find()).forEach(({ rules: r }) => { r.entries().forEach(([name, rights]) => IAM.everyone({ [name]: rights })) });
   RoleModel
   UserModel
   UserRoleModel
@@ -112,7 +112,11 @@ export const writeToDatabase = async () => {
   await ResourceModel.deleteMany();
   await ResourceModel.insertMany(IAM.data.resources);
 
-  EveryoneModel;
+  await EveryoneModel.deleteMany();
+  await EveryoneModel.insertMany({
+    rules: IAM.configuration.roles.find(({ name }) => name === 'everyone').rights
+  });
+
   RoleModel
   UserModel
   UserRoleModel
