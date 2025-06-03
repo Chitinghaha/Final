@@ -1,5 +1,5 @@
 import { IAM } from '../../src/index.js';
-import { MONGO_URI } from './config.js';
+import { DEMO_SETUP, MONGO_URI } from './config.js';
 
 import express from 'express';
 import mongoose from 'mongoose';
@@ -8,10 +8,7 @@ import { fileURLToPath } from 'url';
 
 export const app = express();
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -33,12 +30,13 @@ const rightValidate = {
 }
 
 const resourceSchema = new mongoose.Schema({
-  rules: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    validate: rightValidate,
+  name: String,
+  rights: {
+    type: mongoose.Schema.Types.Mixed,
+    validate: wildcardOrArrStringValidator,
   }
-});
+}, { timestamps: true });
+const ResourceModel = mongoose.model('Resource', resourceSchema);
 
 const everyoneSchema = new mongoose.Schema({
   rules: {
@@ -46,7 +44,8 @@ const everyoneSchema = new mongoose.Schema({
     of: mongoose.Schema.Types.Mixed,
     validate: rightValidate,
   }
-});
+}, { timestamps: true });
+const EveryoneModel = mongoose.model('Everyone', everyoneSchema);
 
 const roleSchema = new mongoose.Schema({
   rules: {
@@ -54,41 +53,74 @@ const roleSchema = new mongoose.Schema({
     of: mongoose.Schema.Types.Mixed,
     validate: rightValidate,
   }
-});
+}, { timestamps: true });
+const RoleModel = mongoose.model('Role', roleSchema);
 
 const userSchema = new mongoose.Schema({
   name: String,
   roles: [String],
-});
+}, { timestamps: true });
+const UserModel = mongoose.model('User', userSchema);
 
 const userRoleSchema = new mongoose.Schema({
   user: String,
   role: String,
-});
+}, { timestamps: true });
+const UserRoleModel = mongoose.model('UserRole', userRoleSchema);
 
 const groupSchema = new mongoose.Schema({
   name: String,
-});
+}, { timestamps: true });
+const GroupModel = mongoose.model('Group', groupSchema);
 
 const groupRoleSchema = new mongoose.Schema({
   group: String,
   role: String,
-});
+}, { timestamps: true });
+const GroupRoleModel = mongoose.model('GroupRole', groupRoleSchema);
 
 const groupUserSchema = new mongoose.Schema({
   group: String,
   user: String,
-});
+}, { timestamps: true });
+const GroupUserModel = mongoose.model('GroupUser', groupUserSchema);
 
 const explicitUserRightSchema = new mongoose.Schema({
   user: String,
   resource: String,
   right: [String],
-});
+}, { timestamps: true });
+const ExplicitUserRightModel = mongoose.model('ExplicitUserRight', explicitUserRightSchema);
 
 // ESM workaround for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const loadFromDatabase = async () => {
+  (await ResourceModel.find()).forEach(({ name, rights }) => IAM.createResource({ [name]: rights }));
+  (await EveryoneModel.find()).forEach(console.log);
+  RoleModel
+  UserModel
+  UserRoleModel
+  GroupModel
+  GroupRoleModel
+  GroupUserModel
+  ExplicitUserRightModel
+}
+
+export const writeToDatabase = async () => {
+  await ResourceModel.deleteMany();
+  await ResourceModel.insertMany(IAM.data.resources);
+
+  EveryoneModel;
+  RoleModel
+  UserModel
+  UserRoleModel
+  GroupModel
+  GroupRoleModel
+  GroupUserModel
+  ExplicitUserRightModel
+}
 
 const setupDemo = () => {
     IAM.createResource({
@@ -165,8 +197,6 @@ const dumpObject = (obj) => ({
             .filter(Boolean)
     )
 });
-
-setupDemo();
 
 // Middleware
 app.use(express.json());
@@ -289,3 +319,11 @@ app.post('/api/group/revoke-role', (req, res) => {
     res.status(500).json({ error: 'Failed to revoke role from group' });
   }
 });
+
+(async () => {
+  if (DEMO_SETUP) {
+    setupDemo();
+  } else {
+    await loadFromDatabase();
+  }
+})();
