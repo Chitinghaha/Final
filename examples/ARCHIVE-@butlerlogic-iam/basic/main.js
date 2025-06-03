@@ -1,164 +1,103 @@
-import IAM, { Resource, Role, Group, User, Right } from 'https://cdn.jsdelivr.net/npm/@author.io/iam/index.min.js'
-// import IAM from '../../src/index.js'
+let currentUser = 'John Doe';
 
-// Define the system components
-IAM.createResource({
-  home: ['view'],
-  blog: ['view', 'edit']
-})
+const snippet = document.querySelector('.home code:last-of-type');
+const template = document.querySelector('author-cycle');
+const userList = document.querySelector('header > select[name="user"]');
 
-// console.log(IAM.resources)
+// API 調用
+const fetchIAMData = async () => (await fetch('/api/iam-data')).json();
+const userAuthorized = async (userName, resource, permission) =>
+  (await fetch('/api/user/authorized', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userName, resource, permission })
+  })).json().then(res => res.data);
 
-// Set defaults. Allow users to view the home
-// and blog tabs, but deny access to the administrator.
-IAM.everyone({
-  home: '*',
-  blog: ['view', 'deny:edit']
-})
+const userTrace = async (userName, resource, permission) =>
+  (await fetch('/api/user/trace', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userName, resource, permission })
+  })).json().then(res => res.data);
 
-// Create an admin role
-IAM.createRole('administrator_role', {
-  blog: ['allow:edit']
-})
-
-// Create a basic user
-let basicUser = new User()
-
-// Optionally give the user a descriptive name.
-basicUser.name = 'John Doe'
-
-// Create an admin user
-let adminUser = new User()
-adminUser.name = 'Almighty Blogmaster'
-
-// Assign the admin user to the administrator role.
-// adminUser.assign('administrator_role')
-
-window.currentUser = basicUser
-
-// =============================================//
-
-// Groups
-let adminGroup = IAM.createGroup('administrator')
-let groups = IAM.createGroup('writer', 'reader')
-
-IAM.group('writer').add('reader', 'administrator')
-
-adminGroup.assign('administrator_role')
-adminUser.join('administrator')
-
-// =============================================//
-
-// UI
-
-// Basic UI interaction
-const snippet = document.querySelector('.home code:last-of-type')
-const template = document.querySelector('author-cycle')
-const userList = document.querySelector('header > select[name="user"]')
-
+// 動態 UI 行為
 document.querySelectorAll('header a').forEach(link => {
-  link.addEventListener('click', evt => {
+  link.addEventListener('click', async evt => {
     if (!evt.target.getAttribute('selected')) {
-      evt.preventDefault()
+      evt.preventDefault();
 
-      let displaySection = evt.target.getAttribute('id')
+      const displaySection = evt.target.getAttribute('id');
+      const resource = displaySection !== 'home' ? 'blog' : 'home';
+      const permission = displaySection === 'editor' ? 'edit' : 'view';
 
-      let resource = displaySection !== 'home' ? 'blog' : 'home'
-      let permission = displaySection === 'editor' ? 'edit' : 'view'
+      const authorized = await userAuthorized(currentUser, resource, permission);
+      const trace = await userTrace(currentUser, resource, permission);
 
-      if (!currentUser.authorized(resource, permission)) {
-        alert(`Sorry ${currentUser.name}, you aren't authorized to see that section.\n\n${currentUser.trace(resource, permission).description}`)
-        return
+      if (!authorized) {
+        alert(`Sorry ${currentUser}, you aren't authorized to see that section.\n\n${trace.description}`);
+        return;
       }
 
-      try {
-        console.log(`Checking if ${currentUser.name} has "${permission}" right on the "${resource}" resource.`)
-        console.log(currentUser.trace(resource, permission).description)
-      } catch (e) {
-        console.error(e)
-        console.log(resource, permission)
-        console.log(currentUser.trace(resource, permission))
-      }
+      console.log(`Checking if ${currentUser} has "${permission}" on "${resource}".`);
+      console.log(trace.description);
 
-      template.show(`.${displaySection}`)
+      template.show(`.${displaySection}`);
     }
-  })
-})
+  });
+});
 
-userList.addEventListener('change', evt => {
-  currentUser = IAM.users[parseInt(evt.target.selectedOptions[0].value, 10)]
-  snippet.innerHTML = userData()
-})
+// 初始載入 IAM 資料
+const renderIAM = async () => {
+  const res = await fetchIAMData();
+  const { roles, groups, users, resources } = res;
 
-IAM.users.forEach((user, index) => {
-  userList.insertAdjacentHTML('beforeend', `<option value="${index}">${user.name}</option>`)
-})
+  // 角色
+  const roleTable = document.querySelector('.roles table tbody');
+  roles.forEach(role => {
+    const rights = Object.entries(role.rights)
+      .map(([resource, perms]) =>
+        perms.map(priv => `<div class="permission_${priv.granted ? 'granted' : 'denied'}">${resource}: ${priv.right}</div>`).join('')
+      ).join('');
 
+    roleTable.insertAdjacentHTML('beforeend', `<tr><td>${role.name}</td><td>${rights}</td></tr>`);
+  });
 
-if (!currentUser) {
-  console.warn('currentUser is not defined')
-}
+  // 群組
+  const groupTable = document.querySelector('.groups table tbody');
+  groups.forEach(group => {
+    const rolesHTML = group.roles.join('<br/>');
+    const membersHTML = group.members.map(m => m.name).join('<br/>');
+    groupTable.insertAdjacentHTML('beforeend', `<tr><td>${group.name}</td><td>${rolesHTML}</td><td>${membersHTML}</td></tr>`);
+  });
 
-let userData = () => {
-  const dataStr = JSON.stringify(currentUser?.data ?? {}, null, 2)
-  const rightsStr = JSON.stringify(currentUser?.rights ?? {}, null, 2)
-  return dataStr.trim() + '\n\n// Rights\n' + rightsStr.trim()
-}
+  // 使用者
+  users.forEach((user, index) => {
+    userList.insertAdjacentHTML('beforeend', `<option value="${user.name}" ${user.name === currentUser ? 'selected' : ''}>${user.name}</option>`);
+  });
 
-// 安全地設定 userData 顯示
-if (currentUser) {
-  snippet.innerHTML = userData()
-} else {
-  snippet.innerHTML = '// No user selected'
-}
+  // 切換使用者
+  userList.addEventListener('change', async evt => {
+    currentUser = evt.target.value;
+    await updateUserSnippet();
+  });
 
-// 修正 resource 權限顯示
-const resourceTable = document.querySelector('.resources table')
-IAM.resources.forEach(resource => {
-  const rights = resource.data.rights
-  let rightsStr = ''
+  // 資源
+  const resourceTable = document.querySelector('.resources table');
+  resources.forEach(resource => {
+    const rights = resource.rights.map(priv =>
+      `<span class="permission_${priv.granted ? 'granted' : 'denied'}">${priv.right}</span>`
+    ).join(', ');
+    resourceTable.insertAdjacentHTML('beforeend', `<tr><td>${resource.name}</td><td>${rights}</td></tr>`);
+  });
 
-  if (Array.isArray(rights)) {
-    rightsStr = rights.join(', ')
-  } else if (typeof rights === 'object' && rights !== null) {
-    rightsStr = Object.entries(rights).map(([k, v]) => `${k}: ${v}`).join(', ')
-  } else {
-    rightsStr = String(rights)
-  }
+  await updateUserSnippet();
+};
 
-  resourceTable.insertAdjacentHTML('beforeend',
-    `<tr><td>${resource.name}</td><td>${rightsStr}</td></tr>`
-  )
-})
+// 顯示目前使用者資料
+const updateUserSnippet = async () => {
+  const res = await fetchIAMData();
+  const user = res.users.find(u => u.name === currentUser);
+  snippet.innerHTML = JSON.stringify(user, null, 2);
+};
 
-
-
-
-const roleTable = document.querySelector('.roles table tbody')
-IAM.roles.forEach(role => {
-  let rights = ''
-
-  Object.entries(role.rights ?? {}).forEach(([resourceName, privileges]) => {
-    privileges.forEach(privilege => {
-      rights += `<div class="permission_${privilege.allowed ? 'granted' : 'denied'}">${resourceName}: ${privilege.allowed ? 'allowed' : 'denied'}</div>`
-    })
-  })
-
-  roleTable.insertAdjacentHTML('beforeend', `<tr><td class="role_${role.name}">${role.name}</td><td>${rights}</td></tr>`)
-})
-
-
-const groupTable = document.querySelector('.groups table tbody')
-IAM.groups.forEach(group => {
-  groupTable.insertAdjacentHTML('beforeend', `<tr>
-    <td>${group.name}</td>
-    <td>${group.roleList?.join('<br/>') || ''}</td>
-    <td>${
-      group.members.map(m => {
-        const isGroup = m?.roleList !== undefined // Group 通常有 roleList
-        return (m?.name || '(unknown)') + (isGroup ? ' (group)' : '')
-      }).join('<br/>')
-    }</td>
-  </tr>`)
-})
-
+renderIAM();

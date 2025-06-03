@@ -164,24 +164,3 @@ table tbody tr td:last-of-type {
 article {
   max-width: 1000px;
 }
-
-.resource-block {
-  border: 1px solid #ccc;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 5px;
-}
-
-.resource-block h2 {
-  margin-top: 0;
-}
-
-.permissions-container ul {
-  list-style-type: none;
-  padding-left: 0;
-}
-
-.permissions-container li {
-  margin: 0.3rem 0;
-  font-size: 1rem;
-}
