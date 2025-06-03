@@ -14,23 +14,41 @@ const setupDemo = () => {
     IAM.createResource({
         home: ['view'],
         blog: ['view', 'edit'],
-        permissions:['view']
+        permissions:['view'],
+        admin_settings:['view']
     })
 
     IAM.everyone({
         home: '*',
         blog: ['view', 'deny:edit'],
-        permissions:['deny:view']
+        permissions:'*',
+        admin_settings:['deny:view']
     })
 
     IAM.createRole('administrator_role', {
         blog: ['allow:edit'],
-        permissions:['allow:view']
+        permissions:['allow:view'],
+        admin_settings:['allow:view']
     })
+
+    IAM.createRole('blog_role', {
+        blog: '*',
+    })
+
+    IAM.createRole('admin_settings_role', {
+        admin_settings: '*',
+    })
+
+
 
     // Create a basic user
     const basicUser = IAM.createUser()
     basicUser.name = 'John Doe'
+
+    const basicUser2 = IAM.createUser()
+    basicUser2.name = 'Jim Lin'
+
+    
 
     // Create an admin user
     // Assign the admin user to the administrator role.
@@ -46,6 +64,11 @@ const setupDemo = () => {
 
     adminGroup.assign('administrator_role')
     adminUser.join('administrator')
+
+
+    const userGroup = IAM.createGroup('User')
+    userGroup.assign('blog_role')
+    basicUser2.join('User')
 }
 
 const dumpObject = (obj) => ({
@@ -179,6 +202,26 @@ app.post('/api/user/assign-role', (req, res) => {
     res.status(500).json({ error: 'Failed to assign role' });
   }
 });
+
+app.post('/api/user/set-right', (req, res) => {
+  try {
+    const { userName, resource, right, value } = req.body;
+    const user = IAM.user(userName);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // ex: user.setRight('portal', 'allow:view')
+    user.setRight(resource, `${value}:${right}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error setting single right:', error);
+    res.status(500).json({ error: 'Failed to set right' });
+  }
+});
+
+
+
+
 
 
 

@@ -20,6 +20,7 @@
     <a href="#" id="blog">Blog</a>
     <a href="#" id="editor">Editor</a>
     <a href="#" id="permissions">Permissions</a>
+    <a href="#" id="admin_settings">Admin Settings</a>
     <select name="user"></select>
   </header>
   <main>
@@ -121,6 +122,21 @@
           <button type="submit">Post Article</button>
         </form>
       </section>
+
+      <!-- 新增 Admin Settings 頁面 -->
+      <section class="admin_settings">
+        <h1>Admin Settings</h1>
+        <p>這是管理員專屬的設定頁面，未來可以擴充權限設定功能。</p>
+
+        <label for="admin-user-select">使用者：</label>
+        <select id="admin-user-select"></select>
+
+        <div id="admin-permissions"></div>
+
+      </section>
+
+
+
     </author-cycle>
   </main>
 </body>
